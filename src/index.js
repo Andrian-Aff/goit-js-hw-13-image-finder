@@ -1,7 +1,7 @@
-import NewsApiService from './js/apiService';
-import hitsTpl from './templates/galleryMarkup.hbs'
 import './sass/main.scss';
+import GalleryApi from './js/apiService';
 import openModal from './js/modal';
+import galleryTpl from './templates/galleryTpl.hbs';
 
 import '@pnotify/core/dist/PNotify.css';
 import '@pnotify/core/dist/BrightTheme.css';
@@ -9,82 +9,62 @@ import {error} from '@pnotify/core';
 
 const debounce = require('lodash.debounce');
 
+export const galleryImage = new GalleryApi ();
 
 export const refs = {
-   inputEl: document.querySelector('.search-form'),
-   galleryMurkup: document.querySelector('.gallery'),
-   body: document.querySelector('body'),
-   btnLoadMore: document.querySelector('.button-load-more')
-};
+    inputEl: document.getElementById('search-form'),
+    gallery: document.querySelector('.gallery'),
+    btnLoadMore: document.querySelector('.button-load-more'),
+}
 
 
-refs.btnLoadMore.addEventListener('click', addPictures);
-refs.galleryMurkup.addEventListener('click', openModal);
+refs.gallery.addEventListener('click', openModal);
 refs.inputEl.addEventListener('input', debounce(takeInputValue, 1500));
 
-const newsApiService = new NewsApiService(1, 'children');
+function takeInputValue(event) {
 
+    let value = event.target.value.trim();
 
-
-// function onSearch(e) {
-//     e.preventDefault();
-//     newsApiService.query = e.currentTarget.elements.query.value;
-//     newsApiService.resetPage();
-//     newsApiService.fetchArticles().then(appendHitsMarkup);
- 
-// }
-
-// function appendHitsMarkup(hits) {
-//     refs.galleryMurkup.insertAdjacentHTML('beforeend', hitsTpl(hits));
-// }
-
-
-function takeInputValue(event){
-    let value = event.currentTarget.elements.query.value.toLowerCase().trim();
-    console.log(value);
-
-    if(value === ''){
-        // hideButton()
+    if (value === '') {
         clearContainer();       
+        
+        observer.disconnect(refs.btnLoadMore);
         return InputError();
     }
 
-    if (value !== newsApiService.inputValue){
+    if (value !== galleryImage.inputValue){
         clearContainer();
-        newsApiService.returnStartPage();
-        newsApiService.setInputValue(value);
+        galleryImage.returnStartPage();
+        galleryImage.setInputValue(value);
     }
 
-        return showPictures(newsApiService.inputValue)
+        return showPictures(galleryImage.inputValue)
 }
 
-
 function showPictures () {
-    newsApiService.getPictures()
+    galleryImage.getPictures()
     .then(hits => 
     {renderGallery(hits)})    
-    .then(newsApiService.incrementPage())
+    .then(galleryImage.incrementPage())
 }
     
 function renderGallery(arr) {
-    console.log(arr)
-    if (arr.hits.length === 0) {
+    if (arr.hits.length === 0 && galleryImage.page === 2 ) {
         return notifError();
     }
-    // console.log(arr)
-    const markup = hitsTpl(arr);
+    //console.log(arr)
+    const markup = galleryTpl(arr);
     //console.log(markup);   
     refs.gallery.insertAdjacentHTML('beforeend', markup);
-    //registerObserver();
+    observer.observe(refs.btnLoadMore);
 }
 
-
-function addPictures(event){
-    event.preventDefault();
-    newsApiService.getPictures()
+function addPictures(event) {
+    //event.preventDefault();    
+    galleryImage.getPictures()
     .then(hits => 
         {renderGallery(hits)})
-    .then(newsApiService.incrementPage())    
+    .then(galleryImage.incrementPage())    
 }
 
 function clearContainer(){
@@ -92,16 +72,7 @@ function clearContainer(){
 }
 
 
-// кнопка дозагрузки
-function showButton(){
-    refs.btnLoadMore.classList.add('visible');
-}
-
-function hideButton(){
-    refs.btnLoadMore.classList.remove('visible');
-}
-
-
+                          // Ошибки // 
 function notifError() {
     error({
         title: 'Unfortunately, your search returned no results.',
@@ -118,15 +89,13 @@ function InputError() {
       });
 };
 
-function registerObserver(){
 
+
+                    // Дозагрузка изображений//
 const callback = entries => {
     entries.forEach(entry => {
-        if(entry.isIntersecting && newsApiService.inputValue !== ''){
-            newsApiService.getPictures()
-            .then(hits => 
-                {renderGallery(hits)})
-                .then(newsApiService.incrementPage())
+        if(entry.isIntersecting && galleryImage.inputValue !== ''){
+            addPictures();
         }
 
     })}
@@ -136,5 +105,3 @@ const options = {
 };
 
 const observer = new IntersectionObserver(callback, options);
-observer.observe(refs.btnLoadMore);
-}
